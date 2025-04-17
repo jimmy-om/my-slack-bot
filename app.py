@@ -2,6 +2,7 @@ import os
 import requests
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+from slack_sdk.signature import SignatureVerifier
 
 load_dotenv()  # .env 불러오기
 
@@ -9,6 +10,7 @@ app = Flask(__name__)
 
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 DEEPL_API_KEY = os.getenv("DEEPL_API_KEY")
+verifier = SignatureVerifier(signing_secret=os.environ["SLACK_SIGNING_SECRET"])
 
 # Slack 메시지 보내기
 def send_slack_message(channel, text):
@@ -53,7 +55,8 @@ def detect_lang(text):
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
     data = request.json
-
+    if not verifier.is_valid_request(request.get_data(), request.headers):
+        return "Invalid request", 403
     # Slack 인증 challenge
     if "challenge" in data:
         return jsonify({"challenge": data["challenge"]})
